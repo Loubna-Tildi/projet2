@@ -1,0 +1,1160 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Projet Calcul Stochastique — EDS & Pricing d'Options</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #ffffff;
+      --bg2: #f6f6f4;
+      --bg3: #efefec;
+      --text: #1a1a18;
+      --text2: #5f5e5a;
+      --border: rgba(0,0,0,0.12);
+      --border2: rgba(0,0,0,0.25);
+      --blue: #3266ad;
+      --blue-light: #e6f1fb;
+      --red: #e24b4a;
+      --green: #1D9E75;
+      --amber: #EF9F27;
+      --radius: 10px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1e1e1c;
+        --bg2: #2a2a27;
+        --bg3: #333330;
+        --text: #f0ede8;
+        --text2: #a8a69f;
+        --border: rgba(255,255,255,0.1);
+        --border2: rgba(255,255,255,0.22);
+        --blue-light: #0c447c44;
+      }
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg3);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 24px 16px;
+    }
+
+    .container { max-width: 960px; margin: 0 auto; }
+
+    header {
+      background: var(--bg);
+      border-radius: var(--radius);
+      border: 0.5px solid var(--border);
+      padding: 24px 28px;
+      margin-bottom: 20px;
+    }
+    header h1 { font-size: 22px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+    header p { font-size: 14px; color: var(--text2); line-height: 1.6; }
+
+    .formula {
+      display: inline-block;
+      background: var(--blue-light);
+      border: 0.5px solid var(--blue);
+      border-radius: 6px;
+      padding: 6px 14px;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      color: var(--blue);
+      margin-top: 10px;
+    }
+
+    /* ── NAV PRINCIPALE (2 modules) ── */
+    .main-nav {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .main-tab {
+      flex: 1;
+      padding: 12px 16px;
+      font-size: 14px;
+      font-weight: 500;
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--bg);
+      color: var(--text2);
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.15s;
+    }
+    .main-tab:hover { color: var(--text); border-color: var(--blue); }
+    .main-tab.active {
+      background: var(--blue);
+      color: #fff;
+      border-color: var(--blue);
+    }
+
+    .module { display: none; }
+    .module.active { display: block; }
+
+    .card {
+      background: var(--bg);
+      border-radius: var(--radius);
+      border: 0.5px solid var(--border);
+      padding: 24px 28px;
+      margin-bottom: 20px;
+    }
+
+    /* ── SOUS-ONGLETS ── */
+    .tabs {
+      display: flex;
+      gap: 2px;
+      margin-bottom: 24px;
+      background: var(--bg2);
+      border-radius: 8px;
+      padding: 4px;
+    }
+    .tab {
+      flex: 1;
+      padding: 9px 10px;
+      font-size: 12px;
+      font-weight: 500;
+      border: none;
+      background: none;
+      color: var(--text2);
+      cursor: pointer;
+      border-radius: 6px;
+      transition: all 0.15s;
+      text-align: center;
+    }
+    .tab:hover { color: var(--text); background: var(--bg3); }
+    .tab.active { background: var(--bg); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,0.12); }
+
+    .section { display: none; }
+    .section.active { display: block; }
+
+    /* ── CONTROLES ── */
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 14px;
+      margin-bottom: 18px;
+      padding: 16px;
+      background: var(--bg2);
+      border-radius: 8px;
+    }
+    .ctrl label {
+      display: block;
+      font-size: 11px;
+      color: var(--text2);
+      margin-bottom: 5px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .ctrl-row { display: flex; align-items: center; gap: 8px; }
+    .ctrl-row input[type=range] {
+      flex: 1;
+      -webkit-appearance: none;
+      height: 4px;
+      background: var(--border2);
+      border-radius: 2px;
+      outline: none;
+    }
+    .ctrl-row input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px; height: 16px;
+      background: var(--blue);
+      border-radius: 50%;
+      cursor: pointer;
+    }
+    .ctrl-row span {
+      font-size: 12px;
+      font-weight: 600;
+      min-width: 40px;
+      text-align: right;
+      color: var(--blue);
+      font-family: 'Courier New', monospace;
+    }
+    .ctrl select {
+      width: 100%;
+      margin-top: 2px;
+      font-size: 12px;
+      padding: 6px 8px;
+      border: 0.5px solid var(--border2);
+      border-radius: 6px;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    /* ── INFO BOX ── */
+    .info-box {
+      background: var(--blue-light);
+      border-left: 3px solid var(--blue);
+      border-radius: 0 8px 8px 0;
+      padding: 11px 16px;
+      margin-bottom: 18px;
+      font-size: 12px;
+      color: var(--text2);
+      line-height: 1.7;
+      font-family: 'Courier New', monospace;
+    }
+
+    /* ── LEGENDE ── */
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin-bottom: 12px;
+      font-size: 12px;
+      color: var(--text2);
+    }
+    .legend span { display: flex; align-items: center; gap: 6px; }
+    .dot { width: 18px; height: 3px; border-radius: 2px; flex-shrink: 0; }
+
+    /* ── GRAPHIQUES ── */
+    .chart-wrap { position: relative; width: 100%; height: 320px; margin-bottom: 18px; }
+    .chart-wrap-sm { position: relative; width: 100%; height: 230px; margin-bottom: 18px; }
+
+    /* ── METRIQUES ── */
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 10px;
+      margin-top: 4px;
+    }
+    .metric {
+      background: var(--bg2);
+      border-radius: 8px;
+      padding: 12px 14px;
+    }
+    .metric-label { font-size: 10px; color: var(--text2); margin-bottom: 3px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; }
+    .metric-val { font-size: 20px; font-weight: 500; color: var(--text); font-family: 'Courier New', monospace; }
+    .metric-val.bs { color: var(--blue); }
+    .metric-val.mc { color: var(--green); }
+    .metric-val.eu { color: var(--red); }
+    .metric-sub { font-size: 10px; color: var(--text2); margin-top: 2px; }
+
+    /* ── BOUTON ── */
+    .run-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 8px 18px;
+      font-size: 13px;
+      font-weight: 500;
+      border: 0.5px solid var(--border2);
+      border-radius: 8px;
+      background: var(--bg);
+      color: var(--text);
+      cursor: pointer;
+      transition: all 0.15s;
+      margin-bottom: 18px;
+    }
+    .run-btn:hover { background: var(--bg2); border-color: var(--blue); color: var(--blue); }
+
+    /* ── PARITÉ ── */
+    .parity-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-top: 8px;
+    }
+    .pcard {
+      background: var(--bg2);
+      border-radius: 8px;
+      padding: 14px 16px;
+    }
+    .pcard h4 {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text2);
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .prow {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 5px 0;
+      border-bottom: 0.5px solid var(--border);
+      font-size: 12px;
+      color: var(--text2);
+    }
+    .prow:last-child { border-bottom: none; font-weight: 500; color: var(--text); }
+    .prow .v { font-family: 'Courier New', monospace; color: var(--text); }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 500;
+    }
+    .badge-ok { background: #e1f5ee; color: #085041; }
+    .badge-warn { background: #faeeda; color: #633806; }
+
+    footer {
+      text-align: center;
+      font-size: 12px;
+      color: var(--text2);
+      padding: 20px;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;">
+      <h1>Projet Calcul Stochastique — EDS & Pricing d'Options Européennes</h1>
+      <span style="font-size:13px;font-weight:500;color:var(--text2);white-space:nowrap;padding-top:4px;">Tildi Loubna</span>
+    </div>
+    <p>Visualisation interactive des méthodes : solution exacte, Monte Carlo et schéma d'Euler-Maruyama</p>
+    <div class="formula">dX = μX dt + σX dW(t) &nbsp;→&nbsp; X(t) = X₀ · exp((μ − σ²/2)t + σW(t))</div>
+  </header>
+
+  <!-- NAVIGATION PRINCIPALE -->
+  <div class="main-nav">
+    <button class="main-tab active" onclick="switchModule('eds')">Équations Différentielles Stochastiques</button>
+    <button class="main-tab" onclick="switchModule('options')">Pricing des Options Européennes</button>
+    <button class="main-tab" onclick="switchModule('ml')">Machine Learning — GP (Ludkovski)</button>
+  </div>
+
+  <!-- ════════════════════════════════════════════
+       MODULE 1 : EDS
+  ════════════════════════════════════════════ -->
+  <div id="mod-eds" class="module active">
+    <div class="card">
+      <div class="tabs">
+        <button class="tab active" onclick="switchTab('trajectoires')">Trajectoires</button>
+        <button class="tab" onclick="switchTab('distribution')">Distribution finale</button>
+        <button class="tab" onclick="switchTab('convergence')">Convergence Euler</button>
+        <button class="tab" onclick="switchTab('erreur')">Analyse d'erreur</button>
+      </div>
+
+      <!-- TAB 1 : TRAJECTOIRES -->
+      <div id="tab-trajectoires" class="section active">
+        <div class="info-box">Même mouvement brownien W(t) pour les deux méthodes — l'écart visible est uniquement l'erreur de discrétisation d'Euler</div>
+        <div class="controls">
+          <div class="ctrl"><label>Drift μ</label><div class="ctrl-row"><input type="range" id="mu" min="-0.5" max="0.5" step="0.05" value="0.1"><span id="mu-v">0.10</span></div></div>
+          <div class="ctrl"><label>Volatilité σ</label><div class="ctrl-row"><input type="range" id="sigma" min="0.05" max="0.8" step="0.05" value="0.3"><span id="sigma-v">0.30</span></div></div>
+          <div class="ctrl"><label>Pas N (Euler)</label><div class="ctrl-row"><input type="range" id="nsteps" min="10" max="500" step="10" value="50"><span id="nsteps-v">50</span></div></div>
+          <div class="ctrl"><label>Trajectoires</label><div class="ctrl-row"><input type="range" id="npaths" min="1" max="20" step="1" value="5"><span id="npaths-v">5</span></div></div>
+        </div>
+        <div class="legend">
+          <span><span class="dot" style="background:#3266ad"></span>Solution exacte</span>
+          <span><span class="dot" style="background:#e24b4a; background:repeating-linear-gradient(90deg,#e24b4a 0,#e24b4a 4px,transparent 4px,transparent 8px)"></span>Schéma d'Euler</span>
+        </div>
+        <div class="chart-wrap"><canvas id="traj-chart" role="img" aria-label="Trajectoires comparant solution exacte et schéma d'Euler"></canvas></div>
+        <div class="metrics" id="traj-metrics"></div>
+      </div>
+
+      <!-- TAB 2 : DISTRIBUTION -->
+      <div id="tab-distribution" class="section">
+        <div class="info-box">Distribution empirique de X(T) par Monte Carlo vs densité log-normale théorique exacte</div>
+        <div class="controls">
+          <div class="ctrl"><label>Drift μ</label><div class="ctrl-row"><input type="range" id="mu2" min="-0.3" max="0.5" step="0.05" value="0.1"><span id="mu2-v">0.10</span></div></div>
+          <div class="ctrl"><label>Volatilité σ</label><div class="ctrl-row"><input type="range" id="sigma2" min="0.05" max="0.8" step="0.05" value="0.3"><span id="sigma2-v">0.30</span></div></div>
+          <div class="ctrl"><label>Simulations N</label><div class="ctrl-row"><input type="range" id="nsim" min="100" max="10000" step="100" value="2000"><span id="nsim-v">2000</span></div></div>
+          <div class="ctrl"><label>Horizon T</label><div class="ctrl-row"><input type="range" id="horizon" min="0.25" max="3" step="0.25" value="1"><span id="horizon-v">1.00</span></div></div>
+        </div>
+        <button class="run-btn" onclick="runDistrib()">▶ Simuler</button>
+        <div class="legend">
+          <span><span class="dot" style="background:#3266ad"></span>Monte Carlo (histogramme)</span>
+          <span><span class="dot" style="background:#1D9E75"></span>Loi log-normale exacte</span>
+        </div>
+        <div class="chart-wrap"><canvas id="dist-chart" role="img" aria-label="Distribution finale Monte Carlo vs log-normale exacte"></canvas></div>
+        <div class="metrics" id="dist-metrics"></div>
+      </div>
+
+      <!-- TAB 3 : CONVERGENCE EULER -->
+      <div id="tab-convergence" class="section">
+        <div class="info-box">Erreur forte E[|X(T) − X̃(T)|] en fonction du pas h = T/N — ordre théorique O(√h) = O(h^0.5)</div>
+        <div class="controls">
+          <div class="ctrl"><label>Drift μ</label><div class="ctrl-row"><input type="range" id="mu3" min="-0.3" max="0.5" step="0.05" value="0.1"><span id="mu3-v">0.10</span></div></div>
+          <div class="ctrl"><label>Volatilité σ</label><div class="ctrl-row"><input type="range" id="sigma3" min="0.05" max="0.8" step="0.05" value="0.3"><span id="sigma3-v">0.30</span></div></div>
+        </div>
+        <button class="run-btn" onclick="runConvergence()">▶ Calculer l'ordre</button>
+        <div class="legend">
+          <span><span class="dot" style="background:#e24b4a"></span>Erreur forte empirique</span>
+          <span><span class="dot" style="background:#888;background:repeating-linear-gradient(90deg,#888 0,#888 5px,transparent 5px,transparent 9px)"></span>Référence O(√h)</span>
+        </div>
+        <div class="chart-wrap-sm"><canvas id="conv-chart" role="img" aria-label="Convergence de l'erreur forte du schéma d'Euler"></canvas></div>
+        <div class="metrics" id="conv-metrics"></div>
+      </div>
+
+      <!-- TAB 4 : ERREUR -->
+      <div id="tab-erreur" class="section">
+        <div class="info-box">Accumulation de l'erreur |X(t) − X̃(t)| dans le temps — même réalisation du mouvement brownien</div>
+        <div class="controls">
+          <div class="ctrl"><label>Drift μ</label><div class="ctrl-row"><input type="range" id="mu4" min="-0.3" max="0.5" step="0.05" value="0.1"><span id="mu4-v">0.10</span></div></div>
+          <div class="ctrl"><label>Volatilité σ</label><div class="ctrl-row"><input type="range" id="sigma4" min="0.05" max="0.8" step="0.05" value="0.3"><span id="sigma4-v">0.30</span></div></div>
+          <div class="ctrl"><label>Pas N</label><div class="ctrl-row"><input type="range" id="nsteps4" min="5" max="200" step="5" value="20"><span id="nsteps4-v">20</span></div></div>
+        </div>
+        <div class="legend">
+          <span><span class="dot" style="background:#3266ad"></span>Solution exacte</span>
+          <span><span class="dot" style="background:#e24b4a"></span>Euler</span>
+          <span><span class="dot" style="background:#EF9F27"></span>|Erreur| (zone)</span>
+        </div>
+        <div class="chart-wrap"><canvas id="err-chart" role="img" aria-label="Erreur entre solution exacte et schéma d'Euler"></canvas></div>
+        <div class="metrics" id="err-metrics"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════
+       MODULE 2 : PRICING OPTIONS
+  ════════════════════════════════════════════ -->
+  <div id="mod-options" class="module">
+    <div class="card">
+      <div class="tabs">
+        <button class="tab active" onclick="switchOptTab('prix')">Prix des options</button>
+        <button class="tab" onclick="switchOptTab('conv')">Convergence MC</button>
+        <button class="tab" onclick="switchOptTab('surface')">Prix vs paramètres</button>
+        <button class="tab" onclick="switchOptTab('parite')">Parité Call-Put</button>
+      </div>
+
+      <!-- OPT TAB 1 : PRIX -->
+      <div id="otab-prix" class="section active">
+        <div class="info-box">BS: C = S·N(d₁) − K·e^(−rT)·N(d₂) &nbsp;|&nbsp; MC/Euler: C ≈ e^(−rT)·(1/N)·Σ max(Sᵢ(T)−K, 0)</div>
+        <div class="controls">
+          <div class="ctrl"><label>S₀ (spot)</label><div class="ctrl-row"><input type="range" id="oS" min="50" max="150" step="1" value="100"><span id="oS-v">100</span></div></div>
+          <div class="ctrl"><label>K (strike)</label><div class="ctrl-row"><input type="range" id="oK" min="50" max="150" step="1" value="100"><span id="oK-v">100</span></div></div>
+          <div class="ctrl"><label>σ (vol)</label><div class="ctrl-row"><input type="range" id="ovol" min="0.05" max="0.8" step="0.05" value="0.2"><span id="ovol-v">0.20</span></div></div>
+          <div class="ctrl"><label>r (taux)</label><div class="ctrl-row"><input type="range" id="orate" min="0" max="0.15" step="0.01" value="0.05"><span id="orate-v">0.05</span></div></div>
+          <div class="ctrl"><label>T (maturité)</label><div class="ctrl-row"><input type="range" id="oT" min="0.1" max="3" step="0.1" value="1"><span id="oT-v">1.00</span></div></div>
+          <div class="ctrl"><label>N simulations</label><div class="ctrl-row"><input type="range" id="oNsim" min="500" max="20000" step="500" value="5000"><span id="oNsim-v">5000</span></div></div>
+          <div class="ctrl"><label>Pas Euler M</label><div class="ctrl-row"><input type="range" id="oM" min="10" max="300" step="10" value="50"><span id="oM-v">50</span></div></div>
+        </div>
+        <button class="run-btn" onclick="runPrix()">▶ Simuler</button>
+        <div class="metrics" id="prix-mets"></div>
+        <div class="legend" style="margin-top:14px">
+          <span><span class="dot" style="background:#3266ad"></span>Black-Scholes (exact)</span>
+          <span><span class="dot" style="background:#1D9E75"></span>Monte Carlo</span>
+          <span><span class="dot" style="background:#e24b4a"></span>Euler-Maruyama</span>
+        </div>
+        <div class="chart-wrap"><canvas id="prix-chart" role="img" aria-label="Comparaison des prix Call et Put par les trois méthodes"></canvas></div>
+      </div>
+
+      <!-- OPT TAB 2 : CONVERGENCE MC -->
+      <div id="otab-conv" class="section">
+        <div class="info-box">Erreur MC = |Prix_MC(N) − Prix_BS| en fonction du nombre de simulations N — ordre théorique O(1/√N)</div>
+        <div class="controls">
+          <div class="ctrl"><label>S₀</label><div class="ctrl-row"><input type="range" id="cS" min="50" max="150" step="1" value="100"><span id="cS-v">100</span></div></div>
+          <div class="ctrl"><label>K</label><div class="ctrl-row"><input type="range" id="cK" min="50" max="150" step="1" value="100"><span id="cK-v">100</span></div></div>
+          <div class="ctrl"><label>σ</label><div class="ctrl-row"><input type="range" id="cvol" min="0.05" max="0.6" step="0.05" value="0.2"><span id="cvol-v">0.20</span></div></div>
+          <div class="ctrl"><label>r</label><div class="ctrl-row"><input type="range" id="crate" min="0" max="0.15" step="0.01" value="0.05"><span id="crate-v">0.05</span></div></div>
+          <div class="ctrl"><label>T</label><div class="ctrl-row"><input type="range" id="cT" min="0.1" max="3" step="0.1" value="1"><span id="cT-v">1.00</span></div></div>
+        </div>
+        <button class="run-btn" onclick="runConvMC()">▶ Calculer convergence</button>
+        <div class="legend">
+          <span><span class="dot" style="background:#1D9E75"></span>Erreur Call MC</span>
+          <span><span class="dot" style="background:#3266ad"></span>Erreur Put MC</span>
+          <span><span class="dot" style="background:#aaa;background:repeating-linear-gradient(90deg,#aaa 0,#aaa 4px,transparent 4px,transparent 8px)"></span>O(1/√N) référence</span>
+        </div>
+        <div class="chart-wrap"><canvas id="convmc-chart" role="img" aria-label="Convergence de l'erreur Monte Carlo vs nombre de simulations"></canvas></div>
+        <div class="metrics" id="conv-mets"></div>
+      </div>
+
+      <!-- OPT TAB 3 : SURFACE -->
+      <div id="otab-surface" class="section">
+        <div class="info-box">Prix Call/Put BS (trait) vs points Monte Carlo en fonction du paramètre choisi</div>
+        <div class="controls">
+          <div class="ctrl">
+            <label>Varier</label>
+            <select id="param-x">
+              <option value="S">Spot S₀</option>
+              <option value="vol">Volatilité σ</option>
+              <option value="T">Maturité T</option>
+              <option value="K">Strike K</option>
+            </select>
+          </div>
+          <div class="ctrl"><label>S₀</label><div class="ctrl-row"><input type="range" id="sS" min="50" max="150" step="5" value="100"><span id="sS-v">100</span></div></div>
+          <div class="ctrl"><label>K</label><div class="ctrl-row"><input type="range" id="sK" min="50" max="150" step="5" value="100"><span id="sK-v">100</span></div></div>
+          <div class="ctrl"><label>σ</label><div class="ctrl-row"><input type="range" id="svol" min="0.05" max="0.6" step="0.05" value="0.2"><span id="svol-v">0.20</span></div></div>
+          <div class="ctrl"><label>r</label><div class="ctrl-row"><input type="range" id="srate" min="0" max="0.15" step="0.01" value="0.05"><span id="srate-v">0.05</span></div></div>
+          <div class="ctrl"><label>T</label><div class="ctrl-row"><input type="range" id="sT" min="0.1" max="3" step="0.1" value="1"><span id="sT-v">1.00</span></div></div>
+        </div>
+        <div class="legend">
+          <span><span class="dot" style="background:#3266ad"></span>Call BS</span>
+          <span><span class="dot" style="background:#3266ad;opacity:.4"></span>Put BS</span>
+          <span><span class="dot" style="background:#1D9E75"></span>Call MC (points)</span>
+          <span><span class="dot" style="background:#e24b4a"></span>Put MC (points)</span>
+        </div>
+        <div class="chart-wrap"><canvas id="surf-chart" role="img" aria-label="Prix des options en fonction du paramètre sélectionné"></canvas></div>
+      </div>
+
+      <!-- OPT TAB 4 : PARITÉ -->
+      <div id="otab-parite" class="section">
+        <div class="info-box">Parité Call-Put : C − P = S₀ − K·e^(−rT) — exacte par BS, approchée par MC et Euler</div>
+        <div class="controls">
+          <div class="ctrl"><label>S₀</label><div class="ctrl-row"><input type="range" id="pS" min="50" max="150" step="1" value="100"><span id="pS-v">100</span></div></div>
+          <div class="ctrl"><label>K</label><div class="ctrl-row"><input type="range" id="pK" min="50" max="150" step="1" value="100"><span id="pK-v">100</span></div></div>
+          <div class="ctrl"><label>σ</label><div class="ctrl-row"><input type="range" id="pvol" min="0.05" max="0.6" step="0.05" value="0.2"><span id="pvol-v">0.20</span></div></div>
+          <div class="ctrl"><label>r</label><div class="ctrl-row"><input type="range" id="prate" min="0" max="0.15" step="0.01" value="0.05"><span id="prate-v">0.05</span></div></div>
+          <div class="ctrl"><label>T</label><div class="ctrl-row"><input type="range" id="pT" min="0.1" max="3" step="0.1" value="1"><span id="pT-v">1.00</span></div></div>
+          <div class="ctrl"><label>N sim</label><div class="ctrl-row"><input type="range" id="pN" min="1000" max="20000" step="1000" value="5000"><span id="pN-v">5000</span></div></div>
+        </div>
+        <button class="run-btn" onclick="runParite()">▶ Vérifier la parité</button>
+        <div id="parite-content"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════
+       MODULE 3 : MACHINE LEARNING — GP
+  ════════════════════════════════════════════ -->
+  <div id="mod-ml" class="module">
+    <div class="card">
+      <div class="tabs">
+        <button class="tab active" onclick="switchMLTab('comparaison')">GP vs Monte Carlo</button>
+        <button class="tab" onclick="switchMLTab('erreur')">Analyse d'erreur</button>
+        <button class="tab" onclick="switchMLTab('npoints')">Impact N points</button>
+      </div>
+
+      <!-- ML TAB 1 : COMPARAISON GP vs MC -->
+      <div id="mltab-comparaison" class="section active">
+        <div class="info-box">GP entraîné sur n points vs Monte Carlo répété — même valeur exacte S₀·e^(μT) comme référence</div>
+        <div class="controls">
+          <div class="ctrl"><label>S₀</label><div class="ctrl-row"><input type="range" id="mlS0" min="50" max="150" step="5" value="100"><span id="mlS0-v">100</span></div></div>
+          <div class="ctrl"><label>σ</label><div class="ctrl-row"><input type="range" id="mlSig" min="0.05" max="0.6" step="0.05" value="0.3"><span id="mlSig-v">0.30</span></div></div>
+          <div class="ctrl"><label>T</label><div class="ctrl-row"><input type="range" id="mlT" min="0.25" max="3" step="0.25" value="1"><span id="mlT-v">1.00</span></div></div>
+          <div class="ctrl"><label>N simulations MC</label><div class="ctrl-row"><input type="range" id="mlNmc" min="100" max="5000" step="100" value="500"><span id="mlNmc-v">500</span></div></div>
+          <div class="ctrl"><label>N points GP</label><div class="ctrl-row"><input type="range" id="mlNgp" min="3" max="20" step="1" value="10"><span id="mlNgp-v">10</span></div></div>
+        </div>
+        <button class="run-btn" onclick="runMLComparaison()">▶ Simuler</button>
+        <div class="legend">
+          <span><span class="dot" style="background:#1a1a18"></span>Valeur exacte S₀·e^(μT)</span>
+          <span><span class="dot" style="background:#1D9E75"></span>GP (interpolation RBF)</span>
+          <span><span class="dot" style="background:#EF9F27"></span>Monte Carlo (bruité)</span>
+          <span><span class="dot" style="background:#3266ad;border-radius:50%;width:8px;height:8px"></span>Points d'entraînement GP</span>
+        </div>
+        <div class="chart-wrap"><canvas id="ml-comp-chart" role="img" aria-label="Comparaison GP vs Monte Carlo vs valeur exacte"></canvas></div>
+        <div class="metrics" id="ml-comp-metrics"></div>
+      </div>
+
+      <!-- ML TAB 2 : ERREUR -->
+      <div id="mltab-erreur" class="section">
+        <div class="info-box">Erreur |prédiction − exact| pour GP et MC en fonction de μ — le GP est plus régulier car il exploite la continuité</div>
+        <div class="controls">
+          <div class="ctrl"><label>S₀</label><div class="ctrl-row"><input type="range" id="ml2S0" min="50" max="150" step="5" value="100"><span id="ml2S0-v">100</span></div></div>
+          <div class="ctrl"><label>σ</label><div class="ctrl-row"><input type="range" id="ml2Sig" min="0.05" max="0.6" step="0.05" value="0.3"><span id="ml2Sig-v">0.30</span></div></div>
+          <div class="ctrl"><label>T</label><div class="ctrl-row"><input type="range" id="ml2T" min="0.25" max="3" step="0.25" value="1"><span id="ml2T-v">1.00</span></div></div>
+          <div class="ctrl"><label>N simulations MC</label><div class="ctrl-row"><input type="range" id="ml2Nmc" min="100" max="5000" step="100" value="500"><span id="ml2Nmc-v">500</span></div></div>
+          <div class="ctrl"><label>N points GP</label><div class="ctrl-row"><input type="range" id="ml2Ngp" min="3" max="20" step="1" value="10"><span id="ml2Ngp-v">10</span></div></div>
+        </div>
+        <button class="run-btn" onclick="runMLErreur()">▶ Calculer</button>
+        <div class="legend">
+          <span><span class="dot" style="background:#1D9E75"></span>|GP − exact|</span>
+          <span><span class="dot" style="background:#EF9F27"></span>|MC − exact|</span>
+        </div>
+        <div class="chart-wrap"><canvas id="ml-err-chart" role="img" aria-label="Erreur GP vs MC en fonction de mu"></canvas></div>
+        <div class="metrics" id="ml-err-metrics"></div>
+      </div>
+
+      <!-- ML TAB 3 : IMPACT N POINTS -->
+      <div id="mltab-npoints" class="section">
+        <div class="info-box">Comment la précision du GP s'améliore quand on augmente le nombre de points d'entraînement</div>
+        <div class="controls">
+          <div class="ctrl"><label>S₀</label><div class="ctrl-row"><input type="range" id="ml3S0" min="50" max="150" step="5" value="100"><span id="ml3S0-v">100</span></div></div>
+          <div class="ctrl"><label>σ</label><div class="ctrl-row"><input type="range" id="ml3Sig" min="0.05" max="0.6" step="0.05" value="0.3"><span id="ml3Sig-v">0.30</span></div></div>
+          <div class="ctrl"><label>T</label><div class="ctrl-row"><input type="range" id="ml3T" min="0.25" max="3" step="0.25" value="1"><span id="ml3T-v">1.00</span></div></div>
+        </div>
+        <button class="run-btn" onclick="runMLNpoints()">▶ Calculer</button>
+        <div class="legend">
+          <span><span class="dot" style="background:#1D9E75"></span>RMSE GP</span>
+          <span><span class="dot" style="background:#EF9F27;background:repeating-linear-gradient(90deg,#EF9F27 0,#EF9F27 4px,transparent 4px,transparent 8px)"></span>RMSE MC (référence fixe)</span>
+        </div>
+        <div class="chart-wrap-sm"><canvas id="ml-npt-chart" role="img" aria-label="RMSE GP en fonction du nombre de points d'entraînement"></canvas></div>
+        <div class="metrics" id="ml-npt-metrics"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <footer>Projet Calcul Stochastique — Tildi Loubna &nbsp;·&nbsp; Mouvement brownien géométrique — Solution exacte · Monte Carlo · Euler-Maruyama · Black-Scholes · GP Ludkovski</footer>
+</div>
+
+<script>
+let charts = {};
+function dc(k){ if(charts[k]){ charts[k].destroy(); delete charts[k]; } }
+function gv(id){ return parseFloat(document.getElementById(id).value); }
+
+/* ── NAVIGATION ── */
+function switchModule(name) {
+  ['eds','options','ml'].forEach(n => {
+    document.getElementById('mod-'+n).classList.toggle('active', n===name);
+  });
+  document.querySelectorAll('.main-tab').forEach((t,i)=>{
+    t.classList.toggle('active', ['eds','options','ml'][i]===name);
+  });
+  if(name==='eds') drawTrajectoires();
+  if(name==='options') runPrix();
+  if(name==='ml') runMLComparaison();
+}
+
+function switchMLTab(name) {
+  const names=['comparaison','erreur','npoints'];
+  document.querySelectorAll('#mod-ml .tab').forEach((t,i)=>t.classList.toggle('active',names[i]===name));
+  names.forEach(n=>document.getElementById('mltab-'+n).classList.toggle('active',n===name));
+  if(name==='comparaison') runMLComparaison();
+  if(name==='erreur') runMLErreur();
+  if(name==='npoints') runMLNpoints();
+}
+
+/* ── GP noyau RBF ── */
+function rbfKernel(x1,x2,l=0.1){
+  return Math.exp(-Math.pow(x1-x2,2)/(2*l*l));
+}
+
+function gpPredict(xTrain,yTrain,xTest,l=0.1,noise=0.01){
+  const n=xTrain.length;
+  // Normalisation de y : centrer-réduire pour stabiliser l'inversion
+  const yMean=yTrain.reduce((a,b)=>a+b,0)/n;
+  const yStd=Math.sqrt(yTrain.reduce((s,v)=>s+(v-yMean)**2,0)/n)||1;
+  const yNorm=yTrain.map(v=>(v-yMean)/yStd);
+
+  const K=[];
+  for(let i=0;i<n;i++){
+    K[i]=[];
+    for(let j=0;j<n;j++) K[i][j]=rbfKernel(xTrain[i],xTrain[j],l)+(i===j?noise:0);
+  }
+  const Kinv=invertMatrix(K);
+  const preds=[];
+  for(const xs of xTest){
+    const kstar=xTrain.map(xt=>rbfKernel(xs,xt,l));
+    let mu=0;
+    for(let i=0;i<n;i++) for(let j=0;j<n;j++) mu+=kstar[i]*Kinv[i][j]*yNorm[j];
+    // Dénormalisation
+    preds.push(mu*yStd+yMean);
+  }
+  return preds;
+}
+
+function invertMatrix(A){
+  const n=A.length;
+  const aug=A.map((row,i)=>[...row,...Array(n).fill(0).map((_,j)=>i===j?1:0)]);
+  for(let col=0;col<n;col++){
+    let maxRow=col;
+    for(let row=col+1;row<n;row++) if(Math.abs(aug[row][col])>Math.abs(aug[maxRow][col])) maxRow=row;
+    [aug[col],aug[maxRow]]=[aug[maxRow],aug[col]];
+    const pivot=aug[col][col];
+    if(Math.abs(pivot)<1e-12) continue;
+    for(let j=0;j<2*n;j++) aug[col][j]/=pivot;
+    for(let row=0;row<n;row++){
+      if(row===col) continue;
+      const factor=aug[row][col];
+      for(let j=0;j<2*n;j++) aug[row][j]-=factor*aug[col][j];
+    }
+  }
+  return aug.map(row=>row.slice(n));
+}
+
+function mcMeanST(S0,mu,sig,T,N){
+  let s=0;
+  for(let i=0;i<N;i++) s+=S0*Math.exp((mu-sig*sig/2)*T+sig*Math.sqrt(T)*randn());
+  return s/N;
+}
+
+function runMLComparaison(){
+  const S0=gv('mlS0'),sig=gv('mlSig'),T=gv('mlT'),Nmc=Math.round(gv('mlNmc')),Ngp=Math.round(gv('mlNgp'));
+  const muMin=0.02,muMax=0.40;
+  const muTest=Array.from({length:30},(_,i)=>muMin+i*(muMax-muMin)/29);
+
+  // Points d'entraînement GP répartis uniformément
+  const muTrain=Array.from({length:Ngp},(_,i)=>muMin+i*(muMax-muMin)/(Ngp-1));
+  // Plus de simulations pour les points d'entraînement → meilleure qualité
+  const yTrain=muTrain.map(mu=>mcMeanST(S0,mu,sig,T,Math.max(Nmc,1000)));
+
+  // Longueur de corrélation = 1.5 * espacement moyen entre points (meilleure calibration)
+  const l=1.5*(muMax-muMin)/(Ngp-1);
+  const gpPred=gpPredict(muTrain,yTrain,muTest,l,0.01);
+
+  // Monte Carlo pour chaque μ test avec Nmc simulations
+  const mcPred=muTest.map(mu=>mcMeanST(S0,mu,sig,T,Nmc));
+
+  // Valeur exacte
+  const exact=muTest.map(mu=>S0*Math.exp(mu*T));
+
+  // Points d'entraînement positionnés sur l'axe x par index le plus proche
+  const trainData=new Array(30).fill(null);
+  muTrain.forEach((mu,i)=>{
+    const idx=Math.round((mu-muMin)/(muMax-muMin)*29);
+    trainData[idx]=yTrain[i];
+  });
+
+  const rmseGP=Math.sqrt(gpPred.reduce((s,v,i)=>s+(v-exact[i])**2,0)/muTest.length);
+  const rmseMC=Math.sqrt(mcPred.reduce((s,v,i)=>s+(v-exact[i])**2,0)/muTest.length);
+
+  dc('mlcomp');
+  charts.mlcomp=new Chart(document.getElementById('ml-comp-chart').getContext('2d'),{
+    type:'line',
+    data:{labels:muTest.map(m=>m.toFixed(3)),datasets:[
+      {label:'Exact',data:exact,borderColor:'#888',borderWidth:1.5,pointRadius:0,tension:0.4,borderDash:[6,3]},
+      {label:'GP',data:gpPred,borderColor:'#1D9E75',borderWidth:2.5,pointRadius:0,tension:0.4},
+      {label:'MC',data:mcPred,borderColor:'#EF9F27',borderWidth:1.5,pointRadius:3,pointBackgroundColor:'#EF9F27',showLine:false},
+      {label:'Points GP',data:trainData,borderColor:'#3266ad',backgroundColor:'#3266ad',
+       pointRadius:6,pointHoverRadius:8,showLine:false}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{x:{ticks:{maxTicksLimit:10,font:{size:11}},title:{display:true,text:'Drift μ',font:{size:11}}},
+              y:{ticks:{font:{size:11}},title:{display:true,text:'E[S(T)]',font:{size:11}},grid:{color:'rgba(128,128,128,0.08)'}}},
+      animation:{duration:300}}
+  });
+
+  const ratio=rmseMC/rmseGP;
+  document.getElementById('ml-comp-metrics').innerHTML=`
+    <div class="metric"><div class="metric-label">RMSE GP</div><div class="metric-val mc">${rmseGP.toFixed(3)}</div><div class="metric-sub">${Ngp} points entraînement</div></div>
+    <div class="metric"><div class="metric-label">RMSE MC</div><div class="metric-val" style="color:#EF9F27">${rmseMC.toFixed(3)}</div><div class="metric-sub">${Nmc} simulations/μ</div></div>
+    <div class="metric"><div class="metric-label">GP / MC précision</div><div class="metric-val ${ratio>=1?'mc':''}" style="${ratio<1?'color:#e24b4a':''}">×${ratio.toFixed(2)}</div><div class="metric-sub">${ratio>=1?'GP plus précis':'MC plus précis ici'}</div></div>
+    <div class="metric"><div class="metric-label">Simulations totales</div><div class="metric-val">${(Ngp*Math.max(Nmc,1000)).toLocaleString()}</div><div class="metric-sub">vs ${(30*Nmc).toLocaleString()} pour MC</div></div>`;
+}
+
+function runMLErreur(){
+  const S0=gv('ml2S0'),sig=gv('ml2Sig'),T=gv('ml2T'),Nmc=Math.round(gv('ml2Nmc')),Ngp=Math.round(gv('ml2Ngp'));
+  const muMin=0.02,muMax=0.40;
+  const muTest=Array.from({length:25},(_,i)=>muMin+i*(muMax-muMin)/24);
+  const muTrain=Array.from({length:Ngp},(_,i)=>muMin+i*(muMax-muMin)/(Ngp-1));
+  const yTrain=muTrain.map(mu=>mcMeanST(S0,mu,sig,T,Nmc));
+  const l=(muMax-muMin)/Ngp;
+  const gpPred=gpPredict(muTrain,yTrain,muTest,l,0.01);
+  const mcPred=muTest.map(mu=>mcMeanST(S0,mu,sig,T,Math.min(Nmc,300)));
+  const exact=muTest.map(mu=>S0*Math.exp(mu*T));
+  const errGP=gpPred.map((v,i)=>Math.abs(v-exact[i]));
+  const errMC=mcPred.map((v,i)=>Math.abs(v-exact[i]));
+
+  dc('mlerr');
+  charts.mlerr=new Chart(document.getElementById('ml-err-chart').getContext('2d'),{
+    type:'line',
+    data:{labels:muTest.map(m=>m.toFixed(3)),datasets:[
+      {label:'|GP − exact|',data:errGP,borderColor:'#1D9E75',borderWidth:2,pointRadius:3,pointBackgroundColor:'#1D9E75',tension:0.3},
+      {label:'|MC − exact|',data:errMC,borderColor:'#EF9F27',borderWidth:2,pointRadius:3,pointBackgroundColor:'#EF9F27',tension:0.1}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{x:{ticks:{maxTicksLimit:10,font:{size:11}},title:{display:true,text:'Drift μ',font:{size:11}}},
+              y:{ticks:{font:{size:11}},title:{display:true,text:'Erreur absolue',font:{size:11}},grid:{color:'rgba(128,128,128,0.08)'}}},
+      animation:{duration:300}}
+  });
+
+  const rmseGP=Math.sqrt(errGP.reduce((s,v)=>s+v*v,0)/errGP.length);
+  const rmseMC=Math.sqrt(errMC.reduce((s,v)=>s+v*v,0)/errMC.length);
+  document.getElementById('ml-err-metrics').innerHTML=`
+    <div class="metric"><div class="metric-label">RMSE GP</div><div class="metric-val mc">${rmseGP.toFixed(3)}</div></div>
+    <div class="metric"><div class="metric-label">RMSE MC</div><div class="metric-val" style="color:#EF9F27">${rmseMC.toFixed(3)}</div></div>
+    <div class="metric"><div class="metric-label">Erreur max GP</div><div class="metric-val mc">${Math.max(...errGP).toFixed(3)}</div></div>
+    <div class="metric"><div class="metric-label">Erreur max MC</div><div class="metric-val" style="color:#EF9F27">${Math.max(...errMC).toFixed(3)}</div></div>`;
+}
+
+function runMLNpoints(){
+  const S0=gv('ml3S0'),sig=gv('ml3Sig'),T=gv('ml3T');
+  const muMin=0.02,muMax=0.40,Nmc=500;
+  const muTest=Array.from({length:20},(_,i)=>muMin+i*(muMax-muMin)/19);
+  const exact=muTest.map(mu=>S0*Math.exp(mu*T));
+  const NptsVals=[3,5,7,10,12,15,20];
+  const rmseGPs=[];
+  for(const Ngp of NptsVals){
+    const muTrain=Array.from({length:Ngp},(_,i)=>muMin+i*(muMax-muMin)/(Ngp-1));
+    const yTrain=muTrain.map(mu=>mcMeanST(S0,mu,sig,T,Nmc));
+    const l=1.5*(muMax-muMin)/(Ngp-1);
+    const gpPred=gpPredict(muTrain,yTrain,muTest,l,0.01);
+    rmseGPs.push(Math.sqrt(gpPred.reduce((s,v,i)=>s+(v-exact[i])**2,0)/muTest.length));
+  }
+  const mcPred=muTest.map(mu=>mcMeanST(S0,mu,sig,T,300));
+  const rmseMC=Math.sqrt(mcPred.reduce((s,v,i)=>s+(v-exact[i])**2,0)/muTest.length);
+
+  dc('mlnpt');
+  charts.mlnpt=new Chart(document.getElementById('ml-npt-chart').getContext('2d'),{
+    type:'line',
+    data:{labels:NptsVals,datasets:[
+      {label:'RMSE GP',data:rmseGPs,borderColor:'#1D9E75',borderWidth:2.5,pointRadius:5,pointBackgroundColor:'#1D9E75',tension:0.3},
+      {label:'RMSE MC',data:NptsVals.map(()=>rmseMC),borderColor:'#EF9F27',borderWidth:1.5,pointRadius:0,borderDash:[5,4]}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{x:{title:{display:true,text:'Nombre de points d\'entraînement GP',font:{size:11}},ticks:{font:{size:11}}},
+              y:{ticks:{font:{size:11}},title:{display:true,text:'RMSE',font:{size:11}},grid:{color:'rgba(128,128,128,0.08)'}}},
+      animation:{duration:400}}
+  });
+
+  const bestRmse=Math.min(...rmseGPs);
+  const bestN=NptsVals[rmseGPs.indexOf(bestRmse)];
+  document.getElementById('ml-npt-metrics').innerHTML=`
+    <div class="metric"><div class="metric-label">RMSE MC (référence)</div><div class="metric-val" style="color:#EF9F27">${rmseMC.toFixed(3)}</div></div>
+    <div class="metric"><div class="metric-label">Meilleur RMSE GP</div><div class="metric-val mc">${bestRmse.toFixed(3)}</div><div class="metric-sub">${bestN} points</div></div>
+    <div class="metric"><div class="metric-label">GP dépasse MC à</div><div class="metric-val">${NptsVals.find((_,i)=>rmseGPs[i]<rmseMC)||'—'} pts</div><div class="metric-sub">seuil croisé</div></div>`;
+}
+
+function switchTab(name) {
+  const names=['trajectoires','distribution','convergence','erreur'];
+  document.querySelectorAll('#mod-eds .tab').forEach((t,i)=>t.classList.toggle('active',names[i]===name));
+  names.forEach(n=>document.getElementById('tab-'+n).classList.toggle('active',n===name));
+  if(name==='trajectoires') drawTrajectoires();
+  if(name==='distribution') runDistrib();
+  if(name==='convergence') runConvergence();
+  if(name==='erreur') drawErreur();
+}
+
+function switchOptTab(name) {
+  const names=['prix','conv','surface','parite'];
+  document.querySelectorAll('#mod-options .tab').forEach((t,i)=>t.classList.toggle('active',names[i]===name));
+  names.forEach(n=>document.getElementById('otab-'+n).classList.toggle('active',n===name));
+  if(name==='prix') runPrix();
+  if(name==='conv') runConvMC();
+  if(name==='surface') drawSurface();
+  if(name==='parite') runParite();
+}
+
+/* ── MATH ── */
+function randn(){
+  let u=0,v=0;
+  while(u===0)u=Math.random(); while(v===0)v=Math.random();
+  return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);
+}
+
+function normCDF(x){
+  const a1=0.254829592,a2=-0.284496736,a3=1.421413741,a4=-1.453152027,a5=1.061405429,p=0.3275911;
+  const sign=x<0?-1:1; x=Math.abs(x)/Math.sqrt(2);
+  const t=1/(1+p*x);
+  const y=1-(((((a5*t+a4)*t)+a3)*t+a2)*t+a1)*t*Math.exp(-x*x);
+  return 0.5*(1+sign*y);
+}
+
+function bs(S,K,r,sig,T){
+  if(T<=0) return{call:Math.max(S-K,0),put:Math.max(K-S,0)};
+  const d1=(Math.log(S/K)+(r+sig*sig/2)*T)/(sig*Math.sqrt(T));
+  const d2=d1-sig*Math.sqrt(T);
+  return{
+    call: S*normCDF(d1)-K*Math.exp(-r*T)*normCDF(d2),
+    put:  K*Math.exp(-r*T)*normCDF(-d2)-S*normCDF(-d1),
+    d1, d2
+  };
+}
+
+function mcPrice(S,K,r,sig,T,N){
+  let sc=0,sp=0;
+  for(let i=0;i<N;i++){
+    const ST=S*Math.exp((r-sig*sig/2)*T+sig*Math.sqrt(T)*randn());
+    sc+=Math.max(ST-K,0); sp+=Math.max(K-ST,0);
+  }
+  const df=Math.exp(-r*T);
+  return{call:df*sc/N, put:df*sp/N};
+}
+
+function eulerPrice(S,K,r,sig,T,N,M){
+  let sc=0,sp=0;
+  const dt=T/M;
+  for(let i=0;i<N;i++){
+    let x=S;
+    for(let j=0;j<M;j++) x+=r*x*dt+sig*x*Math.sqrt(dt)*randn();
+    sc+=Math.max(x-K,0); sp+=Math.max(K-x,0);
+  }
+  const df=Math.exp(-r*T);
+  return{call:df*sc/N, put:df*sp/N};
+}
+
+function genBrownian(N,T){
+  const dt=T/N,dW=[],W=[0];
+  for(let i=0;i<N;i++){const dw=Math.sqrt(dt)*randn();dW.push(dw);W.push(W[W.length-1]+dw);}
+  return{dW,W};
+}
+function makeExact(mu,sigma,T,N,W){
+  const dt=T/N,r=[1];
+  for(let i=1;i<=N;i++) r.push(Math.exp((mu-sigma*sigma/2)*i*dt+sigma*W[i]));
+  return r;
+}
+function makeEuler(mu,sigma,T,N,dW){
+  const dt=T/N,r=[1]; let x=1;
+  for(let i=0;i<N;i++){x+=mu*x*dt+sigma*x*dW[i];r.push(x);}
+  return r;
+}
+
+/* ══════════════════════════════════
+   MODULE EDS
+══════════════════════════════════ */
+function drawTrajectoires(){
+  const mu=gv('mu'),sigma=gv('sigma'),N=Math.round(gv('nsteps')),np=Math.round(gv('npaths'));
+  const T=1,dt=T/N;
+  const labels=Array.from({length:N+1},(_,i)=>(i*dt).toFixed(2));
+  const bc=['#3266ad88','#185FA588','#0C447C88','#378ADD88','#85B7EB88'];
+  const rc=['#e24b4a88','#A32D2D88','#D85A3088','#993C1D88','#F0959588'];
+  const datasets=[]; let mE=new Array(N+1).fill(0),mU=new Array(N+1).fill(0);
+  for(let p=0;p<np;p++){
+    const{dW,W}=genBrownian(N,T);
+    const ex=makeExact(mu,sigma,T,N,W),eu=makeEuler(mu,sigma,T,N,dW);
+    for(let i=0;i<=N;i++){mE[i]+=ex[i];mU[i]+=eu[i];}
+    datasets.push({data:ex,borderColor:bc[p%5],borderWidth:1.5,pointRadius:0,tension:0.3,label:''});
+    datasets.push({data:eu,borderColor:rc[p%5],borderWidth:1.5,pointRadius:0,borderDash:[4,3],tension:0.3,label:''});
+  }
+  dc('traj');
+  charts.traj=new Chart(document.getElementById('traj-chart').getContext('2d'),{
+    type:'line',data:{labels,datasets},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{x:{ticks:{maxTicksLimit:10,font:{size:11}},grid:{color:'rgba(128,128,128,0.08)'}},
+              y:{ticks:{font:{size:11}},grid:{color:'rgba(128,128,128,0.08)'}}},animation:{duration:200}}
+  });
+  const lE=mE[N]/np,lU=mU[N]/np,th=Math.exp(mu*T);
+  document.getElementById('traj-metrics').innerHTML=`
+    <div class="metric"><div class="metric-label">Espérance théorique</div><div class="metric-val">${th.toFixed(4)}</div><div class="metric-sub">e^(μT)</div></div>
+    <div class="metric"><div class="metric-label">Moy. solution exacte</div><div class="metric-val">${lE.toFixed(4)}</div><div class="metric-sub">MC simulation</div></div>
+    <div class="metric"><div class="metric-label">Moy. Euler</div><div class="metric-val">${lU.toFixed(4)}</div><div class="metric-sub">MC simulation</div></div>
+    <div class="metric"><div class="metric-label">Pas h = T/N</div><div class="metric-val">${dt.toFixed(4)}</div><div class="metric-sub">1/${N}</div></div>`;
+}
+
+function runDistrib(){
+  const mu=gv('mu2'),sigma=gv('sigma2'),nsim=Math.round(gv('nsim')),T=gv('horizon');
+  const X=[];
+  for(let i=0;i<nsim;i++) X.push(Math.exp((mu-sigma*sigma/2)*T+sigma*Math.sqrt(T)*randn()));
+  X.sort((a,b)=>a-b);
+  const xmin=X[0],xmax=X[X.length-1],nbins=50,bw=(xmax-xmin)/nbins;
+  const bins=Array(nbins).fill(0);
+  X.forEach(x=>{let b=Math.min(Math.floor((x-xmin)/bw),nbins-1);bins[b]++;});
+  const blabels=bins.map((_,i)=>(xmin+(i+0.5)*bw).toFixed(3));
+  const bdens=bins.map(b=>b/(nsim*bw));
+  const logM=(mu-sigma*sigma/2)*T,logS=sigma*Math.sqrt(T);
+  const pdf=blabels.map(x=>{const v=parseFloat(x);if(v<=0)return 0;return(1/(v*logS*Math.sqrt(2*Math.PI)))*Math.exp(-0.5*((Math.log(v)-logM)/logS)**2);});
+  dc('dist');
+  charts.dist=new Chart(document.getElementById('dist-chart').getContext('2d'),{
+    type:'bar',
+    data:{labels:blabels,datasets:[
+      {label:'Monte Carlo',data:bdens,backgroundColor:'#3266ad33',borderColor:'#3266ad',borderWidth:1},
+      {label:'Log-normale',data:pdf,type:'line',borderColor:'#1D9E75',borderWidth:2.5,pointRadius:0,tension:0.4}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{x:{ticks:{maxTicksLimit:10,font:{size:11}},grid:{display:false}},
+              y:{ticks:{font:{size:11}},grid:{color:'rgba(128,128,128,0.08)'}}},animation:{duration:400}}
+  });
+  const mean=X.reduce((a,b)=>a+b,0)/nsim;
+  const variance=X.reduce((a,b)=>a+(b-mean)**2,0)/(nsim-1);
+  const thM=Math.exp(mu*T),thV=(Math.exp(sigma*sigma*T)-1)*Math.exp(2*mu*T);
+  document.getElementById('dist-metrics').innerHTML=`
+    <div class="metric"><div class="metric-label">Moyenne MC</div><div class="metric-val">${mean.toFixed(4)}</div><div class="metric-sub">théorique: ${thM.toFixed(4)}</div></div>
+    <div class="metric"><div class="metric-label">Variance MC</div><div class="metric-val">${variance.toFixed(4)}</div><div class="metric-sub">théorique: ${thV.toFixed(4)}</div></div>
+    <div class="metric"><div class="metric-label">IC 95% (μ̂)</div><div class="metric-val">±${(1.96*Math.sqrt(variance/nsim)).toFixed(4)}</div><div class="metric-sub">erreur standard</div></div>
+    <div class="metric"><div class="metric-label">Simulations</div><div class="metric-val">${nsim.toLocaleString()}</div></div>`;
+}
+
+function runConvergence(){
+  const mu=gv('mu3'),sigma=gv('sigma3'),T=1,nrep=300;
+  const Nvals=[5,10,20,50,100,200,500];
+  const errors=[];
+  for(const N of Nvals){
+    let s=0;
+    for(let r=0;r<nrep;r++){
+      const{dW,W}=genBrownian(N,T);
+      s+=Math.abs(makeExact(mu,sigma,T,N,W)[N]-makeEuler(mu,sigma,T,N,dW)[N]);
+    }
+    errors.push(s/nrep);
+  }
+  const hvals=Nvals.map(n=>T/n);
+  const ref=errors[3]/Math.sqrt(hvals[3]);
+  const theory=hvals.map(h=>ref*Math.sqrt(h));
+  const logH=hvals.map(h=>Math.log10(h)),logE=errors.map(e=>Math.log10(e));
+  const slope=(logE[logE.length-1]-logE[0])/(logH[logH.length-1]-logH[0]);
+  dc('conv');
+  charts.conv=new Chart(document.getElementById('conv-chart').getContext('2d'),{
+    type:'line',
+    data:{labels:hvals.map(h=>h.toFixed(4)),datasets:[
+      {label:'Erreur forte',data:errors,borderColor:'#e24b4a',borderWidth:2.5,pointRadius:5,pointBackgroundColor:'#e24b4a',tension:0.2},
+      {label:'O(√h)',data:theory,borderColor:'#888',borderWidth:1.5,pointRadius:0,borderDash:[6,4],tension:0.3}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{x:{title:{display:true,text:'pas h',font:{size:11}},ticks:{font:{size:11}}},
+              y:{type:'logarithmic',ticks:{font:{size:10}},grid:{color:'rgba(128,128,128,0.08)'}}},animation:{duration:500}}
+  });
+  document.getElementById('conv-metrics').innerHTML=`
+    <div class="metric"><div class="metric-label">Ordre empirique</div><div class="metric-val">${slope.toFixed(3)}</div><div class="metric-sub">théorique: 0.500</div></div>
+    <div class="metric"><div class="metric-label">Erreur N=5</div><div class="metric-val">${errors[0].toFixed(4)}</div></div>
+    <div class="metric"><div class="metric-label">Erreur N=500</div><div class="metric-val">${errors[errors.length-1].toFixed(5)}</div></div>
+    <div class="metric"><div class="metric-label">Réplications</div><div class="metric-val">${nrep}</div><div class="metric-sub">par niveau de h</div></div>`;
+}
+
+function drawErreur(){
+  const mu=gv('mu4'),sigma=gv('sigma4'),N=Math.round(gv('nsteps4')),T=1,dt=T/N;
+  const{dW,W}=genBrownian(N,T);
+  const ex=makeExact(mu,sigma,T,N,W),eu=makeEuler(mu,sigma,T,N,dW);
+  const err=ex.map((e,i)=>Math.abs(e-eu[i]));
+  const labels=Array.from({length:N+1},(_,i)=>(i*dt).toFixed(2));
+  dc('err');
+  charts.err=new Chart(document.getElementById('err-chart').getContext('2d'),{
+    type:'line',
+    data:{labels,datasets:[
+      {label:'Exact',data:ex,borderColor:'#3266ad',borderWidth:2,pointRadius:0,tension:0.3},
+      {label:'Euler',data:eu,borderColor:'#e24b4a',borderWidth:2,pointRadius:0,borderDash:[4,3],tension:0.3},
+      {label:'|Erreur|',data:err,borderColor:'#EF9F27',borderWidth:1.5,pointRadius:0,fill:true,backgroundColor:'rgba(239,159,39,0.15)',tension:0.3}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{x:{ticks:{maxTicksLimit:10,font:{size:11}},grid:{color:'rgba(128,128,128,0.08)'}},
+              y:{ticks:{font:{size:11}},grid:{color:'rgba(128,128,128,0.08)'}}},animation:{duration:200}}
+  });
+  const maxErr=Math.max(...err),finalErr=err[N];
+  document.getElementById('err-metrics').innerHTML=`
+    <div class="metric"><div class="metric-label">Erreur max sur [0,T]</div><div class="metric-val">${maxErr.toFixed(5)}</div></div>
+    <div class="metric"><div class="metric-label">Erreur finale |X(T)−X̃(T)|</div><div class="metric-val">${finalErr.toFixed(5)}</div></div>
+    <div class="metric"><div class="metric-label">Erreur relative</div><div class="metric-val">${(finalErr/ex[N]*100).toFixed(2)}%</div></div>
+    <div class="metric"><div class="metric-label">Pas h = 1/${N}</div><div class="metric-val">${dt.toFixed(4)}</div></div>`;
+}
+
+/* ══════════════════════════════════
+   MODULE OPTIONS
+══════════════════════════════════ */
+function runPrix(){
+  const S=gv('oS'),K=gv('oK'),sig=gv('ovol'),r=gv('orate'),T=gv('oT'),N=Math.round(gv('oNsim')),M=Math.round(gv('oM'));
+  const b=bs(S,K,r,sig,T);
+  const mc=mcPrice(S,K,r,sig,T,N);
+  const eu=eulerPrice(S,K,r,sig,T,Math.min(N,3000),M);
+  const errMCc=Math.abs(mc.call-b.call),errMCp=Math.abs(mc.put-b.put);
+  const errEuc=Math.abs(eu.call-b.call),errEup=Math.abs(eu.put-b.put);
+  document.getElementById('prix-mets').innerHTML=`
+    <div class="metric"><div class="metric-label">Call BS</div><div class="metric-val bs">${b.call.toFixed(4)}</div><div class="metric-sub">référence exacte</div></div>
+    <div class="metric"><div class="metric-label">Call MC</div><div class="metric-val mc">${mc.call.toFixed(4)}</div><div class="metric-sub">err: ${errMCc.toFixed(4)}</div></div>
+    <div class="metric"><div class="metric-label">Call Euler</div><div class="metric-val eu">${eu.call.toFixed(4)}</div><div class="metric-sub">err: ${errEuc.toFixed(4)}</div></div>
+    <div class="metric"><div class="metric-label">Put BS</div><div class="metric-val bs">${b.put.toFixed(4)}</div><div class="metric-sub">référence exacte</div></div>
+    <div class="metric"><div class="metric-label">Put MC</div><div class="metric-val mc">${mc.put.toFixed(4)}</div><div class="metric-sub">err: ${errMCp.toFixed(4)}</div></div>
+    <div class="metric"><div class="metric-label">Put Euler</div><div class="metric-val eu">${eu.put.toFixed(4)}</div><div class="metric-sub">err: ${errEup.toFixed(4)}</div></div>`;
+  dc('prix');
+  charts.prix=new Chart(document.getElementById('prix-chart').getContext('2d'),{
+    type:'bar',
+    data:{labels:['Call européen','Put européen'],datasets:[
+      {label:'Black-Scholes',data:[b.call,b.put],backgroundColor:'#3266ad99',borderColor:'#3266ad',borderWidth:1.5},
+      {label:'Monte Carlo',data:[mc.call,mc.put],backgroundColor:'#1D9E7599',borderColor:'#1D9E75',borderWidth:1.5},
+      {label:'Euler-Maruyama',data:[eu.call,eu.put],backgroundColor:'#e24b4a99',borderColor:'#e24b4a',borderWidth:1.5}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{x:{ticks:{font:{size:12}}},y:{ticks:{font:{size:11}},grid:{color:'rgba(128,128,128,0.08)'}}},
+      animation:{duration:300}}
+  });
+}
+
+function runConvMC(){
+  const S=gv('cS'),K=gv('cK'),sig=gv('cvol'),r=gv('crate'),T=gv('cT');
+  const b=bs(S,K,r,sig,T);
+  const Nvals=[100,250,500,1000,2000,5000,10000,20000];
+  const errC=[],errP=[];
+  for(const n of Nvals){
+    const mc=mcPrice(S,K,r,sig,T,n);
+    errC.push(Math.abs(mc.call-b.call));
+    errP.push(Math.abs(mc.put-b.put));
+  }
+  const ref0=errC[2]/Math.sqrt(1/Nvals[2]);
+  const theory=Nvals.map(n=>ref0*Math.sqrt(1/n));
+  const logN=Nvals.map(n=>Math.log10(n)),logE=errC.map(e=>Math.log10(e));
+  const slope=(logE[logE.length-1]-logE[0])/(logN[logN.length-1]-logN[0]);
+  dc('convmc');
+  charts.convmc=new Chart(document.getElementById('convmc-chart').getContext('2d'),{
+    type:'line',
+    data:{labels:Nvals.map(n=>n.toLocaleString()),datasets:[
+      {label:'Erreur Call MC',data:errC,borderColor:'#1D9E75',borderWidth:2,pointRadius:4,pointBackgroundColor:'#1D9E75',tension:0.2},
+      {label:'Erreur Put MC',data:errP,borderColor:'#3266ad',borderWidth:2,pointRadius:4,pointBackgroundColor:'#3266ad',tension:0.2,borderDash:[4,3]},
+      {label:'O(1/√N)',data:theory,borderColor:'#aaa',borderWidth:1.5,pointRadius:0,borderDash:[6,4],tension:0.3}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{x:{title:{display:true,text:'Nombre de simulations N',font:{size:11}},ticks:{font:{size:10},maxRotation:30}},
+              y:{type:'logarithmic',ticks:{font:{size:10}},grid:{color:'rgba(128,128,128,0.08)'}}},animation:{duration:400}}
+  });
+  document.getElementById('conv-mets').innerHTML=`
+    <div class="metric"><div class="metric-label">Prix BS Call</div><div class="metric-val bs">${b.call.toFixed(4)}</div></div>
+    <div class="metric"><div class="metric-label">Prix BS Put</div><div class="metric-val bs">${b.put.toFixed(4)}</div></div>
+    <div class="metric"><div class="metric-label">Erreur Call (N=20k)</div><div class="metric-val mc">${errC[errC.length-1].toFixed(5)}</div></div>
+    <div class="metric"><div class="metric-label">Ordre empirique</div><div class="metric-val">${Math.abs(slope).toFixed(3)}</div><div class="metric-sub">théorique: 0.500</div></div>`;
+}
+
+function drawSurface(){
+  const px=document.getElementById('param-x').value;
+  const S0=gv('sS'),K0=gv('sK'),sig0=gv('svol'),r0=gv('srate'),T0=gv('sT');
+  let xs,xlab;
+  if(px==='S'){xs=Array.from({length:20},(_,i)=>50+i*5);xlab='Prix spot S₀';}
+  else if(px==='vol'){xs=Array.from({length:20},(_,i)=>0.05+i*0.03);xlab='Volatilité σ';}
+  else if(px==='T'){xs=Array.from({length:20},(_,i)=>0.1+i*0.15);xlab='Maturité T';}
+  else{xs=Array.from({length:20},(_,i)=>60+i*5);xlab='Strike K';}
+  const bsC=[],bsP=[],mcC=[],mcP=[];
+  xs.forEach(x=>{
+    const S=px==='S'?x:S0,K=px==='K'?x:K0,sig=px==='vol'?x:sig0,T=px==='T'?x:T0;
+    const b=bs(S,K,r0,sig,T),mc=mcPrice(S,K,r0,sig,T,2000);
+    bsC.push(b.call);bsP.push(b.put);mcC.push(mc.call);mcP.push(mc.put);
+  });
+  dc('surf');
+  charts.surf=new Chart(document.getElementById('surf-chart').getContext('2d'),{
+    type:'line',
+    data:{labels:xs.map(x=>typeof x==='number'&&x<1?x.toFixed(2):Math.round(x*100)/100),datasets:[
+      {label:'Call BS',data:bsC,borderColor:'#3266ad',borderWidth:2,pointRadius:0,tension:0.4},
+      {label:'Put BS',data:bsP,borderColor:'#3266adaa',borderWidth:2,pointRadius:0,tension:0.4,borderDash:[5,3]},
+      {label:'Call MC',data:mcC,borderColor:'#1D9E75',borderWidth:1.5,pointRadius:3,pointBackgroundColor:'#1D9E75',showLine:false},
+      {label:'Put MC',data:mcP,borderColor:'#e24b4a',borderWidth:1.5,pointRadius:3,pointBackgroundColor:'#e24b4a',showLine:false}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{x:{title:{display:true,text:xlab,font:{size:11}},ticks:{font:{size:10},maxTicksLimit:12}},
+              y:{title:{display:true,text:'Prix option',font:{size:11}},ticks:{font:{size:11}},grid:{color:'rgba(128,128,128,0.08)'}}},
+      animation:{duration:300}}
+  });
+}
+
+function runParite(){
+  const S=gv('pS'),K=gv('pK'),sig=gv('pvol'),r=gv('prate'),T=gv('pT'),N=Math.round(gv('pN'));
+  const b=bs(S,K,r,sig,T);
+  const mc=mcPrice(S,K,r,sig,T,N);
+  const eu=eulerPrice(S,K,r,sig,T,Math.min(N,2000),50);
+  const parityTh=S-K*Math.exp(-r*T);
+  const parityBS=b.call-b.put,parityMC=mc.call-mc.put,parityEu=eu.call-eu.put;
+  const errBS=Math.abs(parityBS-parityTh),errMC=Math.abs(parityMC-parityTh),errEu=Math.abs(parityEu-parityTh);
+  const tol=0.05,okMC=errMC<tol,okEu=errEu<tol;
+  document.getElementById('parite-content').innerHTML=`
+    <div class="parity-grid">
+      <div class="pcard">
+        <h4>Valeur théorique</h4>
+        <div class="prow"><span>S₀ − K·e^(−rT)</span><span class="v">${parityTh.toFixed(5)}</span></div>
+        <div class="prow"><span>C_BS − P_BS</span><span class="v">${parityBS.toFixed(8)}</span></div>
+        <div class="prow"><span>Erreur BS</span><span class="v"><span class="badge badge-ok">≈ 0 (exact)</span></span></div>
+      </div>
+      <div class="pcard">
+        <h4>Monte Carlo</h4>
+        <div class="prow"><span>C_MC − P_MC</span><span class="v">${parityMC.toFixed(5)}</span></div>
+        <div class="prow"><span>Erreur</span><span class="v">${errMC.toFixed(5)}</span></div>
+        <div class="prow"><span>Vérification</span><span class="v"><span class="badge ${okMC?'badge-ok':'badge-warn'}">${okMC?'Satisfaite':'Écart > seuil'}</span></span></div>
+      </div>
+      <div class="pcard">
+        <h4>Euler-Maruyama</h4>
+        <div class="prow"><span>C_Eu − P_Eu</span><span class="v">${parityEu.toFixed(5)}</span></div>
+        <div class="prow"><span>Erreur</span><span class="v">${errEu.toFixed(5)}</span></div>
+        <div class="prow"><span>Vérification</span><span class="v"><span class="badge ${okEu?'badge-ok':'badge-warn'}">${okEu?'Satisfaite':'Écart > seuil'}</span></span></div>
+      </div>
+      <div class="pcard">
+        <h4>Paramètres utilisés</h4>
+        <div class="prow"><span>Call BS</span><span class="v" style="color:#3266ad">${b.call.toFixed(4)}</span></div>
+        <div class="prow"><span>Put BS</span><span class="v" style="color:#3266ad">${b.put.toFixed(4)}</span></div>
+        <div class="prow"><span>N simulations</span><span class="v">${N.toLocaleString()}</span></div>
+      </div>
+    </div>`;
+}
+
+/* ── SLIDERS ── */
+document.getElementById('param-x').addEventListener('change', drawSurface);
+
+[['mu','mu-v',2],['sigma','sigma-v',2],['nsteps','nsteps-v',0],['npaths','npaths-v',0],
+ ['mu2','mu2-v',2],['sigma2','sigma2-v',2],['nsim','nsim-v',0],['horizon','horizon-v',2],
+ ['mu3','mu3-v',2],['sigma3','sigma3-v',2],
+ ['mu4','mu4-v',2],['sigma4','sigma4-v',2],['nsteps4','nsteps4-v',0],
+ ['mlS0','mlS0-v',0],['mlSig','mlSig-v',2],['mlT','mlT-v',2],['mlNmc','mlNmc-v',0],['mlNgp','mlNgp-v',0],
+ ['ml2S0','ml2S0-v',0],['ml2Sig','ml2Sig-v',2],['ml2T','ml2T-v',2],['ml2Nmc','ml2Nmc-v',0],['ml2Ngp','ml2Ngp-v',0],
+ ['ml3S0','ml3S0-v',0],['ml3Sig','ml3Sig-v',2],['ml3T','ml3T-v',2],
+ ['cS','cS-v',0],['cK','cK-v',0],['cvol','cvol-v',2],['crate','crate-v',2],['cT','cT-v',2],
+ ['sS','sS-v',0],['sK','sK-v',0],['svol','svol-v',2],['srate','srate-v',2],['sT','sT-v',2],
+ ['pS','pS-v',0],['pK','pK-v',0],['pvol','pvol-v',2],['prate','prate-v',2],['pT','pT-v',2],['pN','pN-v',0]
+].forEach(([id,out,dec])=>{
+  const el=document.getElementById(id),o=document.getElementById(out);
+  if(!el||!o) return;
+  o.textContent=parseFloat(el.value).toFixed(dec);
+  el.addEventListener('input',()=>{
+    o.textContent=parseFloat(el.value).toFixed(dec);
+    if(['mu','sigma','nsteps','npaths'].includes(id)) drawTrajectoires();
+    if(['mu4','sigma4','nsteps4'].includes(id)) drawErreur();
+    if(['sS','sK','svol','srate','sT'].includes(id)) drawSurface();
+  });
+});
+
+window.addEventListener('DOMContentLoaded', ()=>{ drawTrajectoires(); });
+</script>
+</body>
+</html>
